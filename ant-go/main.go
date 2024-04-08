@@ -41,13 +41,13 @@ func main() {
 	distanceImportanceParam := flag.Float64("di", 0.5, "distance importance")
 	distanceImportance := (*distanceImportanceParam)
 
-	//fermoneEvaporationParam := flag.Float64("fe", 0.64, "fermone evaporation")
-	//fermoneEvaporation := (*fermoneEvaporationParam)
+	fermoneEvaporationParam := flag.Float64("fe", 0.64, "fermone evaporation")
+	fermoneEvaporation := (*fermoneEvaporationParam)
 
-	//fermoneIncreaseParam := flag.Int("fi", 4, "fermone increase")
-	// fermoneIncrease := (*fermoneIncreaseParam)
+	fermoneLeftParam := flag.Int("fl", 4, "fermone left")
+	fermoneLeft := (*fermoneLeftParam)
 
-	iterationsParam := flag.Int("i", 20, "iterations")
+	iterationsParam := flag.Int("i", 50, "iterations")
 	iterations := (*iterationsParam)
 
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(cityMap, float64(distanceScaler))
@@ -83,6 +83,8 @@ func main() {
 		if shortestPath.distance > paths[0].distance {
 			shortestPath = paths[0]
 		}
+		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
+		fermoneMatrix = leaveFermones(fermoneMatrix, paths, fermoneLeft)
 	}
 
 	fmt.Printf("Shortest path found: %v with distance: %d with %d iterations\n", shortestPath.citySequence, shortestPath.distance, iterations)
@@ -194,4 +196,24 @@ func calculatePathDistance(citySequence []int, cityMap [][]int) int {
 		distance += cityMap[citySequence[i-1]][citySequence[i]]
 	}
 	return distance
+}
+
+func evaporateFermone(fermoneMatrix [][]float64, fermoneEvaporation float64) [][]float64 {
+	for i := 0; i < len(fermoneMatrix); i++ {
+		for j := 0; j < len(fermoneMatrix); j++ {
+			fermoneMatrix[i][j] *= fermoneEvaporation
+		}
+	}
+	return fermoneMatrix
+}
+
+func leaveFermones(fermoneMatrix [][]float64, paths []Path, fermoneIncrease int) [][]float64 {
+	for _, path := range paths {
+		leftFermone := float64(fermoneIncrease) / float64(path.distance)
+		for i := 1; i < len(path.citySequence); i++ {
+			fermoneMatrix[path.citySequence[i-1]][path.citySequence[i]] += leftFermone
+			fermoneMatrix[path.citySequence[i]][path.citySequence[i-1]] += leftFermone
+		}
+	}
+	return fermoneMatrix
 }
