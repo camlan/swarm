@@ -1,65 +1,34 @@
-package main
+package basic
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"math/rand"
+	"slices"
 	"sort"
 
 	"github.com/hashicorp/go-set/v2"
 )
+
+type Path struct {
+	citySequence []int
+	distance     float64
+}
 
 type NextCity struct {
 	cityIndex   int
 	probability float64
 }
 
-type Path struct {
-	citySequence []int
-	distance     int
-}
-
-func main() {
-
-	// init
-	numberOfCitiesParam := flag.Int("c", 10, "number of cities")
-	numberOfCities := (*numberOfCitiesParam)
-	cityMap := generateCityMap(numberOfCities)
-	// numberOfCities := 4
-	// cityMap := generateCityMapFixed()
-	for _, distances := range cityMap {
-		fmt.Printf("%v\n", distances)
-	}
-
-	// params
-	initFermoneParam := flag.Float64("fc", 0.2, "initial fermone coeficient")
-	initFermone := (*initFermoneParam)
-	fermoneImportanceParam := flag.Float64("fi", 1.2, "fermone importance")
-	fermoneImportance := *fermoneImportanceParam
-
-	distanceScalerParam := flag.Int64("ds", 5, "distance scaler")
-	distanceScaler := (*distanceScalerParam)
-	distanceImportanceParam := flag.Float64("di", 1, "distance importance")
-	distanceImportance := (*distanceImportanceParam)
-
-	fermoneEvaporationParam := flag.Float64("fe", 0.64, "fermone evaporation")
-	fermoneEvaporation := (*fermoneEvaporationParam)
-
-	fermoneLeftParam := flag.Int("fl", 20, "fermone left")
-	fermoneLeft := (*fermoneLeftParam)
-
-	iterationsParam := flag.Int("i", 20, "iterations")
-	iterations := (*iterationsParam)
-
-	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(cityMap, float64(distanceScaler))
-	for _, distancesScaled := range cityDistanceMatrixScaled {
-		fmt.Printf("%v\n", distancesScaled)
-	}
+func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
+	bestPath = Path{citySequence: []int{}, distance: 0}
+	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := setUpParamters(distanceMap)
+	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
+	numberOfCities := len(distanceMap)
 
 	fermoneMatrix := generateFermoneMatrix(len(cityDistanceMatrixScaled), initFermone)
 
-	shortestPath := Path{distance: math.MaxInt, citySequence: []int{}}
+	bestPath = Path{distance: math.MaxInt, citySequence: []int{}}
 	for iteration := 0; iteration < iterations; iteration++ {
 		paths := []Path{}
 		for ant := 0; ant < numberOfCities; ant++ {
@@ -74,83 +43,54 @@ func main() {
 				citySelection := rand.Float64()
 				currentCity = selectNextCity(nextCityProbabilities, citySelection)
 			}
-			path := Path{distance: calculatePathDistance(citySequence, cityMap), citySequence: citySequence}
-			fmt.Printf("Ant: %d traveled: %v with distance: %d\n", ant, path.citySequence, path.distance)
+			path := Path{distance: calculatePathDistance(citySequence, distanceMap), citySequence: citySequence}
+			fmt.Printf("Ant: %d traveled: %v with distance: %f\n", ant, path.citySequence, path.distance)
 			paths = append(paths, path)
 		}
 		sort.Slice(paths, func(i, j int) bool {
 			return paths[i].distance < paths[j].distance
 		})
 		fmt.Printf("Paths sorted by distance: %v in iteration: %d\n", paths, iteration)
-		if shortestPath.distance > paths[0].distance {
-			shortestPath = paths[0]
+		if bestPath.distance > paths[0].distance {
+			bestPath = paths[0]
 		}
 		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
 
-	fmt.Printf("Shortest path found: %v with distance: %d with %d iterations\n", shortestPath.citySequence, shortestPath.distance, iterations)
-}
-
-func randomDistance() (distance int) {
-	distance = rand.Intn(20) + 10
 	return
 }
 
-func generateCityMap(numberOfCities int) (cityMap [][]int) {
-	cityMap = make([][]int, numberOfCities)
-	for i := range cityMap {
-		cityMap[i] = make([]int, numberOfCities)
-	}
-	for i := 0; i < numberOfCities; i++ {
-		for j := i + 1; j < numberOfCities; j++ {
-			distance := randomDistance()
-			cityMap[i][j] = distance
-			cityMap[j][i] = distance
+func setUpParamters(distanceMap [][]float64) (float64, float64, float64, float64, float64, float64, int) {
+	initFermone := 0.2
+	fermoneImportance := 1.2
+	distanceImportance := 1.0
+	fermoneEvaporation := 0.64
+	fermoneLeft := 5.0
+	iterations := 100
+	return initFermone, fermoneImportance, calculateDistanceScalerParam(distanceMap), distanceImportance, fermoneEvaporation, fermoneLeft, iterations
+}
+
+func calculateDistanceScalerParam(distanceMap [][]float64) (scaler float64) {
+	max := -1.0
+	for _, distances := range distanceMap {
+		currentMax := slices.Max(distances)
+		if currentMax > max {
+			max = currentMax
 		}
-		cityMap[i][i] = -1
 	}
-	return
+	return max / 10
 }
 
-func generateCityMapFixed() (cityMap [][]int) {
-	cityMap = make([][]int, 4)
-	for i := range cityMap {
-		cityMap[i] = make([]int, 4)
-	}
-
-	cityMap[0][0] = -1
-	cityMap[0][1] = 15
-	cityMap[0][2] = 7
-	cityMap[0][3] = 12
-
-	cityMap[1][0] = 15
-	cityMap[1][1] = -1
-	cityMap[1][2] = 5
-	cityMap[1][3] = 8
-
-	cityMap[2][0] = 7
-	cityMap[2][1] = 5
-	cityMap[2][2] = -1
-	cityMap[2][3] = 21
-
-	cityMap[3][0] = 12
-	cityMap[3][1] = 8
-	cityMap[3][2] = 21
-	cityMap[3][3] = -1
-
-	return
-}
-
-func generateScaledCityDistanceMatrix(cityMap [][]int, distanceScaler float64) (cityMapScaled [][]float64) {
+func generateScaledCityDistanceMatrix(cityMap [][]float64, distanceScaler float64) (cityMapScaled [][]float64) {
 	cityMapScaled = make([][]float64, len(cityMap))
 	for i := range cityMap {
 		cityMapScaled[i] = make([]float64, len(cityMap))
 		for j := range len(cityMap) {
-			if cityMap[i][j] != -1 {
+			if cityMap[i][j] > 0.0 {
 				cityMapScaled[i][j] = distanceScaler / float64(cityMap[i][j])
 			} else {
-				cityMapScaled[i][j] = -1
+				cityMapScaled[i][j] = 0.0
 			}
 		}
 	}
@@ -221,8 +161,8 @@ func selectNextCity(cityProbablities []NextCity, selection float64) int {
 	return -1
 }
 
-func calculatePathDistance(citySequence []int, cityMap [][]int) int {
-	distance := 0
+func calculatePathDistance(citySequence []int, cityMap [][]float64) float64 {
+	distance := 0.0
 	for i := 1; i < len(citySequence); i++ {
 		distance += cityMap[citySequence[i-1]][citySequence[i]]
 	}
@@ -239,7 +179,7 @@ func evaporateFermone(fermoneMatrix [][]float64, fermoneEvaporation float64) [][
 	return fermoneMatrix
 }
 
-func leaveFermone(fermoneMatrix [][]float64, paths []Path, fermoneIncrease int) [][]float64 {
+func leaveFermone(fermoneMatrix [][]float64, paths []Path, fermoneIncrease float64) [][]float64 {
 	for _, path := range paths {
 		leftFermone := float64(fermoneIncrease) / float64(path.distance)
 		for i := 1; i < len(path.citySequence); i++ {
