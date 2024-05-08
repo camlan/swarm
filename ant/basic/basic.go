@@ -1,7 +1,6 @@
 package basic
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"slices"
@@ -56,7 +55,6 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
-	fmt.Printf("Paths sorted by distance: %v in iteration: %d\n", paths, iterations)
 	return
 }
 
