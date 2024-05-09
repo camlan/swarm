@@ -155,6 +155,10 @@ func selectNextCity(cityProbablities []NextCity, selection float64) int {
 			return cityProbablities[i].cityIndex
 		}
 	}
+
+	if len(cityProbablities) > 0 {
+		return cityProbablities[len(cityProbablities)-1].cityIndex
+	}
 	return -1
 }
 
