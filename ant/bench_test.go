@@ -9,11 +9,11 @@ import (
 )
 
 var files = []string{
-	// "data\\uk12_dist.txt",
-	// "data\\ha30_dist.txt",
-	// "data\\grid04_dist.txt",
-	// "data\\kn57_dist.txt",
-	// "data\\lau15_dist.txt",
+	"data\\uk12_dist.txt",
+	"data\\ha30_dist.txt",
+	"data\\grid04_dist.txt",
+	"data\\kn57_dist.txt",
+	"data\\lau15_dist.txt",
 	//	"data\\sgb128_dist.txt",
 	"data\\sp11_dist.txt",
 	"data\\uk12_dist.txt",

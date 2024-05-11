@@ -55,11 +55,6 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
-	// distances := []float64{}
-	// for _, path := range paths {
-	// 	distances = append(distances, path.distance)
-	// }
-	// fmt.Printf("Best path distance: %v, final interation distances: %v\n", bestPath.distance, distances)
 	return
 }
 
