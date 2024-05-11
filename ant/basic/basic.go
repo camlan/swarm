@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/hashicorp/go-set/v2"
 )
@@ -31,6 +32,7 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 	paths := []Path{}
 	for iteration := 0; iteration < iterations; iteration++ {
 		paths = []Path{}
+
 		for ant := 0; ant < numberOfCities; ant++ {
 			visited := set.New[int](numberOfCities)
 			citySequence := []int{}
@@ -46,6 +48,7 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 			path := Path{distance: calculatePathDistance(citySequence, distanceMap), citySequence: citySequence}
 			paths = append(paths, path)
 		}
+
 		sort.Slice(paths, func(i, j int) bool {
 			return paths[i].distance < paths[j].distance
 		})
@@ -55,6 +58,57 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
+	return
+}
+
+func FindShortestPathRouties(distanceMap [][]float64) (bestPath Path) {
+	bestPath = Path{citySequence: []int{}, distance: 0}
+	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := setUpParamters(distanceMap)
+	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
+	numberOfCities := len(distanceMap)
+
+	fermoneMatrix := generateFermoneMatrix(len(cityDistanceMatrixScaled), initFermone)
+
+	bestPath = Path{distance: math.MaxInt, citySequence: []int{}}
+	paths := []Path{}
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+	for iteration := 0; iteration < iterations; iteration++ {
+		paths = []Path{}
+		wg.Add(numberOfCities)
+		for ant := 0; ant < numberOfCities; ant++ {
+			go func(ant int) {
+				visited := set.New[int](numberOfCities)
+				citySequence := []int{}
+				currentCity := ant
+				for i := 0; i < numberOfCities; i++ {
+					visited.Insert(currentCity)
+					citySequence = append(citySequence, currentCity)
+					nextCityProbabilities := calculatePathsSelectionProbabilies(cityDistanceMatrixScaled, fermoneMatrix,
+						fermoneImportance, distanceImportance, currentCity, visited)
+					citySelection := rand.Float64()
+					currentCity = selectNextCity(nextCityProbabilities, citySelection)
+				}
+				path := Path{distance: calculatePathDistance(citySequence, distanceMap), citySequence: citySequence}
+				mutex.Lock()
+				{
+					paths = append(paths, path)
+				}
+				mutex.Unlock()
+				wg.Done()
+			}(ant)
+		}
+		wg.Wait()
+		sort.Slice(paths, func(i, j int) bool {
+			return paths[i].distance < paths[j].distance
+		})
+		if bestPath.distance > paths[0].distance {
+			bestPath = paths[0]
+		}
+		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
+		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
+	}
+
 	return
 }
 

@@ -29,3 +29,12 @@ func BenchmarkFindShortestPathBasic(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkFindShortestPathBasicRoutines(b *testing.B) {
+	for _, f := range files {
+		b.Run(fmt.Sprintf("file:%s", f), func(b *testing.B) {
+			cityMatrix := file.GenerateCityMatrix(f)
+			basic.FindShortestPathRouties(cityMatrix)
+		})
+	}
+}

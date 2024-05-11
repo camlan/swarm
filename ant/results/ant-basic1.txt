@@ -1,0 +1,17 @@
+PS C:\Users\sylwe\git\swarm\ant> go test -bench=FindShortestPath -timeout 5h
+goos: windows
+goarch: amd64
+pkg: github.com/camlan/swarm/ant
+cpu: AMD Ryzen 5 5600H with Radeon Graphics
+BenchmarkFindShortestPathBasic/file:data\uk12_dist.txt-12                      1        3292277100 ns/op
+BenchmarkFindShortestPathBasic/file:data\ha30_dist.txt-12                      1        108291253500 ns/op
+BenchmarkFindShortestPathBasic/file:data\grid04_dist.txt-12             1000000000               0.03593 ns/op
+BenchmarkFindShortestPathBasic/file:data\kn57_dist.txt-12                      1        670833522400 ns/op
+BenchmarkFindShortestPathBasic/file:data\lau15_dist.txt-12                     1        7545903700 ns/op
+BenchmarkFindShortestPathBasic/file:data\sp11_dist.txt-12                      1        2282184900 ns/op
+BenchmarkFindShortestPathBasic/file:data\uk12_dist.txt#01-12                   1        3219931300 ns/op
+BenchmarkFindShortestPathBasic/file:data\wg22_dist.txt-12                      1        33964675300 ns/op
+BenchmarkFindShortestPathBasic/file:data\wg59_dist.txt-12                      1        730046931000 ns/op
+PASS
+ok      github.com/camlan/swarm/ant     1559.822s
+PS C:\Users\sylwe\git\swarm\ant> 
