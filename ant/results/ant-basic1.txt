@@ -27,3 +27,4 @@ BenchmarkFindShortestPathBasicRoutines/file:data\sp11_dist.txt-12               
 BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt#01-12                   1        1735659000 ns/op
 BenchmarkFindShortestPathBasicRoutines/file:data\wg22_dist.txt-12                      1        11431369200 ns/op
 BenchmarkFindShortestPathBasicRoutines/file:data\wg59_dist.txt-12                      1        193692791300 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\sgb128_dist.txt-12                    1        1435438791400 ns/op

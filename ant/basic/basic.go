@@ -165,27 +165,20 @@ func calculatePathsSelectionProbabilies(cityDistanceMatrix [][]float64,
 	distanceImportance float64,
 	currentCity int,
 	visited *set.Set[int]) (nextCityProbabilities []NextCity) {
-	distances := cityDistanceMatrix[currentCity]
 
-	citiesToCalculate := []int{}
+	distances := cityDistanceMatrix[currentCity]
+	nextCityProbabilities = []NextCity{}
+	totalProbabilty := 0.0
+
 	for i, distance := range distances {
 		if distance > 0 && !visited.Contains(i) {
-			citiesToCalculate = append(citiesToCalculate, i)
+			cityToCalculate := i
+			nextCity := NextCity{cityIndex: cityToCalculate,
+				probability: calculatePathSelectionProbalitity(cityDistanceMatrix[currentCity][cityToCalculate], distanceImportance,
+					fermoneMatrix[currentCity][cityToCalculate], fermoneImportance)}
+			nextCityProbabilities = append(nextCityProbabilities, nextCity)
+			totalProbabilty += nextCity.probability
 		}
-	}
-
-	nextCityProbabilities = []NextCity{}
-	for _, cityToCalculate := range citiesToCalculate {
-		nextCity := NextCity{cityIndex: cityToCalculate,
-			probability: calculatePathSelectionProbalitity(cityDistanceMatrix[currentCity][cityToCalculate], distanceImportance,
-				fermoneMatrix[currentCity][cityToCalculate], fermoneImportance)}
-		nextCityProbabilities = append(nextCityProbabilities, nextCity)
-	}
-
-	var totalProbabilty float64
-	totalProbabilty = 0
-	for i := 0; i < len(nextCityProbabilities); i++ {
-		totalProbabilty += nextCityProbabilities[i].probability
 	}
 
 	for i := 0; i < len(nextCityProbabilities); i++ {
