@@ -16,6 +16,6 @@ func main() {
 	} else {
 		cityMatrix = file.GenerateCityMatrix(args[0])
 	}
-	path := basic.FindShortestPath(cityMatrix)
-	fmt.Printf("%+v", path)
+	path := basic.FindShortestPathRouties(cityMatrix)
+	fmt.Printf("%+v", *path)
 }

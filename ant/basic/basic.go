@@ -20,15 +20,14 @@ type NextCity struct {
 	probability float64
 }
 
-func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
-	bestPath = Path{citySequence: []int{}, distance: 0}
+func FindShortestPath(distanceMap [][]float64) (bestPathPtr *Path) {
 	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := setUpParamters(distanceMap)
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 
 	fermoneMatrix := generateFermoneMatrix(len(cityDistanceMatrixScaled), initFermone)
 
-	bestPath = Path{distance: math.MaxInt, citySequence: []int{}}
+	bestPath := Path{distance: math.MaxInt, citySequence: []int{}}
 	paths := []Path{}
 	for iteration := 0; iteration < iterations; iteration++ {
 		paths = []Path{}
@@ -58,18 +57,18 @@ func FindShortestPath(distanceMap [][]float64) (bestPath Path) {
 		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
+	bestPathPtr = &bestPath
 	return
 }
 
-func FindShortestPathRouties(distanceMap [][]float64) (bestPath Path) {
-	bestPath = Path{citySequence: []int{}, distance: 0}
+func FindShortestPathRouties(distanceMap [][]float64) (bestPathPtr *Path) {
 	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := setUpParamters(distanceMap)
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 
 	fermoneMatrix := generateFermoneMatrix(len(cityDistanceMatrixScaled), initFermone)
 
-	bestPath = Path{distance: math.MaxInt, citySequence: []int{}}
+	bestPath := Path{distance: math.MaxInt, citySequence: []int{}}
 	paths := []Path{}
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
@@ -109,6 +108,7 @@ func FindShortestPathRouties(distanceMap [][]float64) (bestPath Path) {
 		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 	}
 
+	bestPathPtr = &bestPath
 	return
 }
 
@@ -139,7 +139,7 @@ func generateScaledCityDistanceMatrix(cityMap [][]float64, distanceScaler float6
 		cityMapScaled[i] = make([]float64, len(cityMap))
 		for j := range len(cityMap) {
 			if cityMap[i][j] > 0.0 {
-				cityMapScaled[i][j] = distanceScaler / float64(cityMap[i][j])
+				cityMapScaled[i][j] = distanceScaler / cityMap[i][j]
 			} else {
 				cityMapScaled[i][j] = 0.0
 			}
@@ -186,7 +186,6 @@ func calculatePathsSelectionProbabilies(cityDistanceMatrix [][]float64,
 		nextCityProbabilities[i].probability /= totalProbabilty
 		nextCityProbabilities[i].probability += nextCityProbabilities[i-1].probability
 	}
-
 	return
 }
 
