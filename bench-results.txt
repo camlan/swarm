@@ -1,0 +1,45 @@
+Ms Justyna was really helpful on every stage of my recruitment process. 
+She not only made the process candiate friendly, but also gave support and managed to find answers to all my questions.
+I recommend Ms Justyna as a great recruiter. 
+
+114061488800
+3281375500
+
+
+
+
+BenchmarkFindShortestPathBasicRoutines
+
+
+BenchmarkFindShortestPathBasic/file:data\uk12_dist.txt-12                      1        3292277100 ns/op
+BenchmarkFindShortestPathBasic/file:data\ha30_dist.txt-12                      1        108291253500 ns/op
+BenchmarkFindShortestPathBasic/file:data\grid04_dist.txt-12             1000000000               0.03593 ns/op
+
+BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt-12                      1        1482858200 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\ha30_dist.txt-12                      1        29537733300 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\grid04_dist.txt-12             1000000000               0.06708 ns/op
+
+
+3292277100
+1482858200
+
+
+108291253500
+29537733300
+
+
+cpu: AMD Ryzen 5 5600H with Radeon Graphics
+BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt-12                      1        1482858200 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\ha30_dist.txt-12                      1        29537733300 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\grid04_dist.txt-12             1000000000               0.06708 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\kn57_dist.txt-12                      1        176364567200 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\lau15_dist.txt-12                     1        3177687600 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\sp11_dist.txt-12                      1        1323462700 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt#01-12                   1        1735659000 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\wg22_dist.txt-12                      1        11431369200 ns/op
+BenchmarkFindShortestPathBasicRoutines/file:data\wg59_dist.txt-12                      1        193692791300 ns/op
+
+
+
+730046931000
+193692791300
