@@ -1,24 +1,26 @@
 package main
 
 /*
-#cgo LDFLAGS:  -L . -lexamplestatic -lcuda -lcudart -lm
+#cgo LDFLAGS:  -L ./lib -lant -lcuda -lcudart -lm
 #include <stdlib.h>
-int add_wrapper(double *a, double *b, size_t len);
+void add_ant_wpr(int* c, const int* a, const int* b, unsigned int size);
 */
 import "C"
 import "fmt"
 
-//  -Xcompiler="/GS-"
-func test(a, b []float64) error {
-	if res := C.add_wrapper((*C.double)(&a[0]), (*C.double)(&b[0]), C.size_t(len(a))); res != 0 {
-		return fmt.Errorf("got bad error code from C.add %d", int(res))
-	}
-	return nil
+func testInt(c, a, b []int32) {
+	C.add_ant_wpr((*C.int)(&c[0]), (*C.int)(&a[0]), (*C.int)(&b[0]), C.uint(len(c)))
 }
 
 func main() {
-	a := []float64{-1.0, 2.5, 4, 0, 5, 3, 6, 2, 1}
-	b := []float64{3.2, 0.5, 2, 3, 4, 5, 4, 7, 2}
-	test(a, b)
-	fmt.Println(a)
+
+	ci := make([]int32, 9)
+	ai := []int32{-1, 2, 4, 0, 5, 3, 6, 2, 1}
+	bi := []int32{43, 12, 2, 3, 4, 5, 4, 7, 2}
+
+	testInt(ci, ai, bi)
+	fmt.Println(ci)
+
 }
+
+//  -Xcompiler="/GS-"
