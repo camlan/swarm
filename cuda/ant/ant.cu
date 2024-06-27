@@ -82,4 +82,10 @@ extern "C" {
     void add_ant_wpr(int* c, const int* a, const int* b, int size) {
         addcuda(c, a, b, size);
     }
+
+    void scale_city_matrix_wrp(double* flatScaledCityMap, const double* flatCityMap, unsigned int size, double distanceScaler) {
+        for (int i = 0; i < size; i++) {
+            flatScaledCityMap[i] = flatCityMap[i] * distanceScaler;
+        }
+    }
 }
