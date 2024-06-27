@@ -17,6 +17,7 @@ func main() {
 	} else {
 		cityMatrix = file.GenerateCityMatrix(args[0])
 	}
+	fmt.Printf("City Matrix: %v\n", cityMatrix)
 	path := cuda.FindShortestPath(cityMatrix)
 	fmt.Printf("%+v", *path)
 }
