@@ -16,18 +16,32 @@ import "C"
 
 func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	// initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
-	_, _, distanceScaler, _, _, _, _ := internal.SetUpParamters(distanceMap)
+	initFermone, _, distanceScaler, _, _, _, iterations := internal.SetUpParamters(distanceMap)
 
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 
+	fermoneMatrix := internal.GenerateFermoneMatrix(len(cityDistanceMatrixScaled), initFermone)
+
 	fmt.Printf("Number of cities: %d\n", numberOfCities)
 	fmt.Printf("Scaled matrix: %v\n", dim2DArray(cityDistanceMatrixScaled))
+	fmt.Printf("Initial fermone matrix: %v\n", fermoneMatrix)
 
 	bestPath := internal.Path{Distance: math.MaxInt, CitySequence: []int{}}
+	// paths := []internal.Path{};
+
+	for iteration := 0; iteration < iterations; iteration++ {
+		// paths = []internal.Path{};
+		moveAnts(numberOfCities, cityDistanceMatrixScaled)
+
+	}
 
 	bestPathPtr = &bestPath
 	return
+}
+
+func moveAnts(numberOfCities int, cityMapScaled []float64) {
+
 }
 
 func generateScaledCityDistanceMatrix(cityMap [][]float64, distanceScaler float64) (cityMapScaled []float64) {
