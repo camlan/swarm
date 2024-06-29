@@ -3,6 +3,7 @@ package cuda
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/camlan/swarm/ant/internal"
 )
@@ -16,7 +17,7 @@ import "C"
 
 func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	// initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
-	initFermone, _, distanceScaler, _, _, _, iterations := internal.SetUpParamters(distanceMap)
+	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
 
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
@@ -28,11 +29,25 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	fmt.Printf("Initial fermone matrix: %v\n", fermoneMatrix)
 
 	bestPath := internal.Path{Distance: math.MaxInt, CitySequence: []int{}}
-	// paths := []internal.Path{};
+	paths := []internal.Path{}
 
 	for iteration := 0; iteration < iterations; iteration++ {
-		// paths = []internal.Path{};
-		moveAnts(numberOfCities, cityDistanceMatrixScaled)
+		paths = []internal.Path{}
+		distances, citySequences := moveAnts(numberOfCities, cityDistanceMatrixScaled, fermoneMatrix, fermoneImportance, distanceImportance)
+		for i, distance := range distances {
+			paths = append(paths, internal.Path{Distance: distance, CitySequence: citySequences[i]})
+		}
+
+		sort.Slice(paths, func(i, j int) bool {
+			return paths[i].Distance < paths[j].Distance
+		})
+
+		if bestPath.Distance > paths[0].Distance {
+			bestPath = paths[0]
+		}
+
+		fermoneMatrix = evaporateFermone(fermoneMatrix, fermoneEvaporation)
+		fermoneMatrix = leaveFermone(fermoneMatrix, paths, fermoneLeft)
 
 	}
 
@@ -40,8 +55,37 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	return
 }
 
-func moveAnts(numberOfCities int, cityMapScaled []float64) {
+func moveAnts(numberOfCities int, cityMapScaled []float64, fermoneMatrix [][]float64, fermoneImportance float64, distanceImportance float64) (distance []float64, citySequence [][]int) {
+	// TODO implement in CUDA
+	return
+}
 
+func leaveFermone(fermoneMatrix [][]float64, paths []internal.Path, fermoneIncrease float64) [][]float64 {
+
+	// TODO implement in CUDA
+
+	// for _, path := range paths {
+	// 	leftFermone := float64(fermoneIncrease) / float64(path.distance)
+	// 	for i := 1; i < len(path.citySequence); i++ {
+	// 		fermoneMatrix[path.citySequence[i-1]][path.citySequence[i]] += leftFermone
+	// 		fermoneMatrix[path.citySequence[i]][path.citySequence[i-1]] += leftFermone
+	// 	}
+	// 	fermoneMatrix[path.citySequence[len(path.citySequence)-1]][path.citySequence[0]] += leftFermone
+	// 	fermoneMatrix[path.citySequence[0]][path.citySequence[len(path.citySequence)-1]] += leftFermone
+	// }
+	return fermoneMatrix
+}
+
+func evaporateFermone(fermoneMatrix [][]float64, fermoneEvaporation float64) [][]float64 {
+
+	// TODO implement in CUDA
+
+	// for i := 0; i < len(fermoneMatrix); i++ {
+	// 	for j := 0; j < len(fermoneMatrix); j++ {
+	// 		fermoneMatrix[i][j] *= fermoneEvaporation
+	// 	}
+	// }
+	return fermoneMatrix
 }
 
 func generateScaledCityDistanceMatrix(cityMap [][]float64, distanceScaler float64) (cityMapScaled []float64) {
