@@ -1,7 +1,13 @@
 ﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <stdio.h>
+#include <stdlib.h>
+
+struct NextCity {
+    int cityIndex;
+    double probability;
+    NextCity* next;
+};
 
 __global__ void addKernel(int* c, const int* a, const int* b)
 {
@@ -19,6 +25,90 @@ __global__ void scaleMapKernel(double* scaledMap, double* baseMap, double scaler
             scaledMap[i] = 0;
         }
     }
+}
+
+
+__global__ void evaporateFermoneKernel(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
+    int i = threadIdx.x; 
+    if (i < size) {
+        fermoneMap1D[i] *= fermoneEvaporation;
+    }
+}
+
+__global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance) {
+    int ant = threadIdx.x; // TODO consider different block/thread structure
+    char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+    int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+    NextCity* nextCityProbabilities;
+
+    int currentCity = ant;
+    for (int i = 0; i < citiesCount; i++) {
+        visited[currentCity] = 1;
+        citySequence[i] = currentCity;
+        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
+
+
+    }
+
+}
+
+NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount) {
+    NextCity * nc;
+
+    double* distances = (cityMap1D + (citiesCount * currentCity));
+    double totalProbabilty = 0;
+    for (int i = 0; i < citiesCount; i++) {
+        if (distances[i] > 0 && !visited[i]) {
+            nc = (NextCity*)malloc(sizeof(struct NextCity));
+            nc->cityIndex = i;
+            nc-> // calculatePathSelectionProbalitity
+        }
+    }
+
+    return nc
+}
+
+void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
+    double* dev_fermone_map = 0;
+
+    cudaError_t cudaStatus;
+
+    cudaStatus = cudaSetDevice(0);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_fermone_map, size * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(dev_fermone_map, fermoneMap1D, size * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    evaporateFermoneKernel << <1, size >> > (dev_fermone_map, size, fermoneEvaporation);
+
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    // Copy output vector from GPU buffer to host memory.
+    cudaStatus = cudaMemcpy(fermoneMap1D, dev_fermone_map, size * sizeof(double), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+    Error:
+        cudaFree(dev_fermone_map);
 }
 
 void scaleMap(double* scaledMap, const double* baseMap, double scaler, unsigned int size) {
@@ -147,5 +237,9 @@ extern "C" {
 
     void scale_city_matrix_wrp(double* flatScaledCityMap, const double* flatCityMap, unsigned int size, double distanceScaler) {
         scaleMap(flatScaledCityMap, flatCityMap, distanceScaler, size);
+    }
+
+    void evaporate_fermone_wrp(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
+        evaporateFermone(fermoneMap1D, size, fermoneEvaporation);
     }
 }

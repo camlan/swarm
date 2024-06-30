@@ -25,6 +25,17 @@ func SetUpParamters(distanceMap [][]float64) (float64, float64, float64, float64
 	return initFermone, fermoneImportance, calculateDistanceScalerParam(distanceMap), distanceImportance, fermoneEvaporation, fermoneLeft, iterations
 }
 
+func GenerateFermoneMap(citiesCount int, initFermone float64) (fermoneMatrix [][]float64) {
+	fermoneMatrix = make([][]float64, citiesCount)
+	for i := range fermoneMatrix {
+		fermoneMatrix[i] = make([]float64, citiesCount)
+		for j := range citiesCount {
+			fermoneMatrix[i][j] = initFermone
+		}
+	}
+	return
+}
+
 func calculateDistanceScalerParam(distanceMap [][]float64) (scaler float64) {
 	max := -1.0
 	for _, distances := range distanceMap {
