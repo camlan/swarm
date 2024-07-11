@@ -2,6 +2,8 @@
 #include "device_launch_parameters.h"
 
 #include <stdlib.h>
+#include <math.h>
+#include <time.h>
 
 struct NextCity {
     int cityIndex;
@@ -41,31 +43,68 @@ __global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int ma
     int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
     NextCity* nextCityProbabilities;
 
+
     int currentCity = ant;
     for (int i = 0; i < citiesCount; i++) {
         visited[currentCity] = 1;
         citySequence[i] = currentCity;
         nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
-
-
+        double r = (double)rand() / (double)RAND_MAX;
+        currentCity = selectNexyCity(nextCityProbabilities, r);
     }
-
 }
 
-NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount) {
-    NextCity * nc;
+__device__ double calculatePathDistance(int* citySequence, int citiesCount, double* cityMap1D) {
+    double * // TODO next calculage distance for single ant
+        // TODO find a way to return distances for all ants and its sequences 
+}
+
+__device__ int selectNexyCity(NextCity* nc, double randomSelector) {
+    while (nc) {
+        if (randomSelector < nc->probability) {
+            return nc->cityIndex;
+        }
+        if (!nc->next) {
+            return nc->cityIndex;
+        }
+        nc = nc->next;
+    }
+    return nc->cityIndex;
+}
+
+__device__ NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount) {
+    NextCity * firstCity;
+    NextCity* nc;
+    firstCity = nc;
 
     double* distances = (cityMap1D + (citiesCount * currentCity));
+    double* fermones = (fermoneMap1D + (citiesCount * currentCity));
     double totalProbabilty = 0;
     for (int i = 0; i < citiesCount; i++) {
         if (distances[i] > 0 && !visited[i]) {
-            nc = (NextCity*)malloc(sizeof(struct NextCity));
+            nc->next = (NextCity*)malloc(sizeof(struct NextCity));
+            nc = nc->next;
             nc->cityIndex = i;
-            nc-> // calculatePathSelectionProbalitity
+            nc->probability = calculatePathSelectionProbalitity(distances[i], distanceImportance, fermones[i], fermoneImportance);
+            nc->next = 0;
+            totalProbabilty += nc->probability;
         }
     }
 
-    return nc
+    nc = firstCity;
+    nc->probability /= totalProbabilty;
+
+    while (nc->next) {
+        nc->next->probability /= totalProbabilty;
+        nc->next->probability += nc->probability;
+        nc = nc->next;
+    }
+
+    return firstCity;
+}
+
+__device__ double calculatePathSelectionProbalitity(double distance, double distanceImportance, double fermone, double fermoneImportance) {
+    return pow(distance, distanceImportance) * pow(fermone, fermoneImportance);
 }
 
 void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {

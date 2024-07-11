@@ -50,11 +50,7 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 		fermoneMap1D = evaporateFermone(fermoneMap1D, fermoneEvaporation)
 		// fermoneMap = leaveFermone(fermoneMap, paths, fermoneLeft)
 
-		if iteration == 3 {
-			fmt.Printf("fermone: %v\n", fermoneMap1D)
-		}
 	}
-	fmt.Printf("fermone: %v\n", fermoneMap1D)
 
 	bestPathPtr = &bestPath
 	return
@@ -83,14 +79,6 @@ func leaveFermone(fermoneMatrix [][]float64, paths []internal.Path, fermoneIncre
 
 func evaporateFermone(fermoneMap1D []float64, fermoneEvaporation float64) []float64 {
 	C.evaporate_fermone_wrp((*C.double)(&fermoneMap1D[0]), C.uint(len(fermoneMap1D)), C.double(fermoneEvaporation))
-
-	// TODO implement in CUDA
-
-	// for i := 0; i < len(fermoneMatrix); i++ {
-	// 	for j := 0; j < len(fermoneMatrix); j++ {
-	// 		fermoneMatrix[i][j] *= fermoneEvaporation
-	// 	}
-	// }
 	return fermoneMap1D
 }
 
