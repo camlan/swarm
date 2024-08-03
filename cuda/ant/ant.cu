@@ -11,6 +11,7 @@ struct NextCity {
     NextCity* next;
 };
 
+
 __global__ void addKernel(int* c, const int* a, const int* b)
 {
     int i = threadIdx.x;
@@ -37,44 +38,13 @@ __global__ void evaporateFermoneKernel(double* fermoneMap1D, unsigned int size, 
     }
 }
 
-__global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance) {
-    int ant = threadIdx.x; // TODO consider different block/thread structure
-    char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
-    int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
-    NextCity* nextCityProbabilities;
-
-
-    int currentCity = ant;
-    for (int i = 0; i < citiesCount; i++) {
-        visited[currentCity] = 1;
-        citySequence[i] = currentCity;
-        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
-        double r = (double)rand() / (double)RAND_MAX;
-        currentCity = selectNexyCity(nextCityProbabilities, r);
-    }
-}
-
-__device__ double calculatePathDistance(int* citySequence, int citiesCount, double* cityMap1D) {
-    double * // TODO next calculage distance for single ant
-        // TODO find a way to return distances for all ants and its sequences 
-}
-
-__device__ int selectNexyCity(NextCity* nc, double randomSelector) {
-    while (nc) {
-        if (randomSelector < nc->probability) {
-            return nc->cityIndex;
-        }
-        if (!nc->next) {
-            return nc->cityIndex;
-        }
-        nc = nc->next;
-    }
-    return nc->cityIndex;
+__device__ double calculatePathSelectionProbalitity(double distance, double distanceImportance, double fermone, double fermoneImportance) {
+    return pow(distance, distanceImportance) * pow(fermone, fermoneImportance);
 }
 
 __device__ NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount) {
-    NextCity * firstCity;
-    NextCity* nc;
+    NextCity* firstCity;
+    NextCity* nc = 0 ;
     firstCity = nc;
 
     double* distances = (cityMap1D + (citiesCount * currentCity));
@@ -103,9 +73,61 @@ __device__ NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, doubl
     return firstCity;
 }
 
-__device__ double calculatePathSelectionProbalitity(double distance, double distanceImportance, double fermone, double fermoneImportance) {
-    return pow(distance, distanceImportance) * pow(fermone, fermoneImportance);
+__device__ int selectNexyCity(NextCity* nc, double randomSelector) {
+    while (nc) {
+        if (randomSelector < nc->probability) {
+            return nc->cityIndex;
+        }
+        if (!nc->next) {
+            return nc->cityIndex;
+        }
+        nc = nc->next;
+    }
+    return nc->cityIndex;
 }
+
+__device__ double calculatePathDistance(int* citySequence, unsigned int citiesCount, double* cityMap1D) {
+    double distance = 0;
+
+    for (int i = 1; i < citiesCount; i++) {
+        distance += *(cityMap1D + (*(citySequence + i - 1) * citiesCount) + *(citySequence + i));
+    }
+    return distance;
+}
+
+__global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int *citySequences) {
+    int ant = threadIdx.x; // TODO consider different block/thread structure
+    char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+    int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+    NextCity* nextCityProbabilities;
+
+
+    int currentCity = ant;
+    for (int i = 0; i < citiesCount; i++) {
+        visited[currentCity] = 1;
+        citySequence[i] = currentCity;
+        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
+        double r = 0; // TODO cuda random generator (double)rand() / (double)RAND_MAX;
+        currentCity = selectNexyCity(nextCityProbabilities, r);
+    }
+    double distance = calculatePathDistance(citySequence, citiesCount, cityMap1D);
+
+
+    distances[ant] = distance;
+    
+    //TODO transer for loop to parallel ??
+    for (int i = 0; i < citiesCount; i++) {
+        citySequences[ant * citiesCount + i] = citySequence[i];
+    }
+}
+
+
+
+
+
+
+
+
 
 void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
     double* dev_fermone_map = 0;
@@ -200,6 +222,79 @@ void scaleMap(double* scaledMap, const double* baseMap, double scaler, unsigned 
         cudaFree(dev_base_map);
 }
 
+void moveAnts(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences) {
+    double* dev_city_map = 0;
+    double* dev_fermone_map = 0;
+    double* dev_distances = 0;
+    int* dev_city_sequences = 0;
+    cudaError_t cudaStatus;
+
+    cudaStatus = cudaSetDevice(0);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+    cudaStatus = cudaMalloc((void**)&dev_city_map, mapSize * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_fermone_map, mapSize * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_distances, citiesCount * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_city_sequences, mapSize * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(dev_city_map, cityMap1D, mapSize * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(dev_fermone_map, cityMap1D, mapSize * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    moveAnt << <1, citiesCount >> > (dev_city_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences);
+
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(distances, dev_distances, citiesCount * sizeof(double), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(citySequences, dev_city_sequences, mapSize * sizeof(int), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+Error:
+    cudaFree(dev_city_map);
+    cudaFree(dev_fermone_map);
+    cudaFree(dev_distances);
+    cudaFree(dev_city_sequences);
+}
+
 // Helper function for using CUDA to add vectors in parallel.
 void addcuda(int* c, const int* a, const int* b, unsigned int size)
 {
@@ -280,5 +375,10 @@ extern "C" {
 
     void evaporate_fermone_wrp(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
         evaporateFermone(fermoneMap1D, size, fermoneEvaporation);
+    }
+
+
+    void move_ants_wrp(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences) {
+        moveAnts(cityMap1D, fermoneMap1D, mapSize, citiesCount, fermoneImportance, distanceImportance, distances, citySequences);
     }
 }

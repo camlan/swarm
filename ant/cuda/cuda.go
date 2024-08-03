@@ -3,6 +3,7 @@ package cuda
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/camlan/swarm/ant/internal"
 )
@@ -12,11 +13,11 @@ import (
 #include <stdlib.h>
 void scale_city_matrix_wrp(double* flatScaledCityMap, const double* flatCityMap, unsigned int size, double distanceScaler);
 void evaporate_fermone_wrp(double* fermoneMatrix1D, unsigned int size, double fermoneEvaporation);
+void move_ants_wrp(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences);
 */
 import "C"
 
 func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
-	// initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
 	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, _, iterations := internal.SetUpParamters(distanceMap)
 
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
@@ -34,18 +35,18 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 
 	for iteration := 0; iteration < iterations; iteration++ {
 		paths = []internal.Path{}
-		distances, citySequences := moveAnts(numberOfCities, cityDistanceMatrixScaled, fermoneMap, fermoneImportance, distanceImportance)
+		distances, citySequences := moveAnts(numberOfCities, cityDistanceMatrixScaled, fermoneMap1D, fermoneImportance, distanceImportance)
 		for i, distance := range distances {
 			paths = append(paths, internal.Path{Distance: distance, CitySequence: citySequences[i]})
 		}
 
-		// sort.Slice(paths, func(i, j int) bool {
-		// 	return paths[i].Distance < paths[j].Distance
-		// })
+		sort.Slice(paths, func(i, j int) bool {
+			return paths[i].Distance < paths[j].Distance
+		})
 
-		// if bestPath.Distance > paths[0].Distance {
-		// 	bestPath = paths[0]
-		// }
+		if bestPath.Distance > paths[0].Distance {
+			bestPath = paths[0]
+		}
 
 		fermoneMap1D = evaporateFermone(fermoneMap1D, fermoneEvaporation)
 		// fermoneMap = leaveFermone(fermoneMap, paths, fermoneLeft)
@@ -56,8 +57,12 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	return
 }
 
-func moveAnts(numberOfCities int, cityMapScaled []float64, fermoneMatrix [][]float64, fermoneImportance float64, distanceImportance float64) (distance []float64, citySequence [][]int) {
-	// TODO implement in CUDA
+func moveAnts(numberOfCities int, cityMapScaled []float64, fermoneMap1D []float64, fermoneImportance float64, distanceImportance float64) (distance []float64, citySequence [][]int) {
+	distance = make([]float64, numberOfCities)
+	citySequence1D := make([]int32, numberOfCities*numberOfCities)
+	C.move_ants_wrp((*C.double)(&cityMapScaled[0]), (*C.double)(&fermoneMap1D[0]), C.uint(len(fermoneMap1D)), C.uint(numberOfCities),
+		C.double(fermoneImportance), C.double(distanceImportance), (*C.double)(&distance[0]), (*C.int)(&citySequence1D[0]))
+	citySequence = dim2DArrayInt(citySequence1D)
 	return
 }
 
@@ -110,6 +115,18 @@ func dim2DArray(flatArray []float64) (arr [][]float64) {
 		arr[i] = make([]float64, size)
 		for j := range size {
 			arr[i][j] = flatArray[i*size+j]
+		}
+	}
+	return
+}
+
+func dim2DArrayInt(flatArray []int32) (arr [][]int) {
+	size := int(math.Sqrt(float64(len(flatArray))))
+	arr = make([][]int, size)
+	for i := range arr {
+		arr[i] = make([]int, size)
+		for j := range size {
+			arr[i][j] = int(flatArray[i*size+j])
 		}
 	}
 	return
