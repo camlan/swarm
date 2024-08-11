@@ -14,6 +14,7 @@ import (
 void scale_city_matrix_wrp(double* flatScaledCityMap, const double* flatCityMap, unsigned int size, double distanceScaler);
 void evaporate_fermone_wrp(double* fermoneMatrix1D, unsigned int size, double fermoneEvaporation);
 void move_ants_wrp(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences);
+void leave_fermone_wrp(double* fermoneMap1D, int* citySequences, double fermoneIncrease, unsigned int mapSize);
 */
 import "C"
 
@@ -35,7 +36,8 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 
 	for iteration := 0; iteration < iterations; iteration++ {
 		paths = []internal.Path{}
-		distances, citySequences := moveAnts(numberOfCities, cityDistanceMatrixScaled, fermoneMap1D, fermoneImportance, distanceImportance)
+		distances, citySequence1D := moveAnts(numberOfCities, cityDistanceMatrixScaled, fermoneMap1D, fermoneImportance, distanceImportance)
+		citySequences := dim2DArrayInt(citySequence1D)
 		for i, distance := range distances {
 			paths = append(paths, internal.Path{Distance: distance, CitySequence: citySequences[i]})
 		}
@@ -49,24 +51,23 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 		}
 
 		fermoneMap1D = evaporateFermone(fermoneMap1D, fermoneEvaporation)
-		// fermoneMap = leaveFermone(fermoneMap, paths, fermoneLeft)
-
+		fermoneMap1D = leaveFermone(fermoneMap1D, citySequence1D, fermoneEvaporation)
 	}
 
 	bestPathPtr = &bestPath
 	return
 }
 
-func moveAnts(numberOfCities int, cityMapScaled []float64, fermoneMap1D []float64, fermoneImportance float64, distanceImportance float64) (distance []float64, citySequence [][]int) {
+func moveAnts(numberOfCities int, cityMapScaled []float64, fermoneMap1D []float64, fermoneImportance float64, distanceImportance float64) (distance []float64, citySequence1D []int32) {
 	distance = make([]float64, numberOfCities)
-	citySequence1D := make([]int32, numberOfCities*numberOfCities)
+	citySequence1D = make([]int32, numberOfCities*numberOfCities)
 	C.move_ants_wrp((*C.double)(&cityMapScaled[0]), (*C.double)(&fermoneMap1D[0]), C.uint(len(fermoneMap1D)), C.uint(numberOfCities),
 		C.double(fermoneImportance), C.double(distanceImportance), (*C.double)(&distance[0]), (*C.int)(&citySequence1D[0]))
-	citySequence = dim2DArrayInt(citySequence1D)
 	return
 }
 
-func leaveFermone(fermoneMatrix [][]float64, paths []internal.Path, fermoneIncrease float64) [][]float64 {
+func leaveFermone(fermoneMap1D []float64, citySequence1D []int32, fermoneIncrease float64) []float64 {
+	C.leave_fermone_wrp((*C.double)(&fermoneMap1D[0]), (*C.int)(&citySequence1D[0]), C.double(fermoneIncrease), C.uint(len(fermoneMap1D)))
 
 	// TODO implement in CUDA
 
@@ -79,7 +80,7 @@ func leaveFermone(fermoneMatrix [][]float64, paths []internal.Path, fermoneIncre
 	// 	fermoneMatrix[path.citySequence[len(path.citySequence)-1]][path.citySequence[0]] += leftFermone
 	// 	fermoneMatrix[path.citySequence[0]][path.citySequence[len(path.citySequence)-1]] += leftFermone
 	// }
-	return fermoneMatrix
+	return fermoneMap1D
 }
 
 func evaporateFermone(fermoneMap1D []float64, fermoneEvaporation float64) []float64 {

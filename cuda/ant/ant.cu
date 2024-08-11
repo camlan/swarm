@@ -11,6 +11,12 @@ struct NextCity {
     NextCity* next;
 };
 
+__global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double fermoneIncrease) {
+    int i = threadIdx.x;
+
+    // TODO implement 
+}
+
 
 __global__ void addKernel(int* c, const int* a, const int* b)
 {
@@ -120,14 +126,6 @@ __global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int ma
         citySequences[ant * citiesCount + i] = citySequence[i];
     }
 }
-
-
-
-
-
-
-
-
 
 void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
     double* dev_fermone_map = 0;
@@ -295,6 +293,54 @@ Error:
     cudaFree(dev_city_sequences);
 }
 
+void leaveFermones(double* fermoneMap1D, int* citySequences, double fermoneIncrease, unsigned int mapSize) {
+
+    double* dev_fermone_map = 0;
+    int* dev_city_sequences = 0;
+
+    cudaError_t cudaStatus;
+
+    cudaStatus = cudaMalloc((void**)&dev_fermone_map, mapSize * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+    cudaStatus = cudaMalloc((void**)&dev_city_sequences, mapSize * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(dev_city_sequences, citySequences, mapSize * sizeof(int), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(dev_fermone_map, fermoneMap1D, mapSize * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+    leaveFermone << <1, mapSize >> > (dev_fermone_map, dev_city_sequences, fermoneIncrease);
+
+
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMemcpy(fermoneMap1D, dev_fermone_map, mapSize * sizeof(double), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+Error:
+    cudaFree(dev_fermone_map);
+    cudaFree(dev_city_sequences);
+}
+
 // Helper function for using CUDA to add vectors in parallel.
 void addcuda(int* c, const int* a, const int* b, unsigned int size)
 {
@@ -380,5 +426,9 @@ extern "C" {
 
     void move_ants_wrp(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences) {
         moveAnts(cityMap1D, fermoneMap1D, mapSize, citiesCount, fermoneImportance, distanceImportance, distances, citySequences);
+    }
+
+    void leave_fermone_wrp(double* fermoneMap1D, int* citySequences, double fermoneIncrease, unsigned int mapSize) {
+        leaveFermones(fermoneMap1D, citySequences, fermoneIncrease, mapSize);
     }
 }
