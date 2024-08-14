@@ -11,10 +11,21 @@ struct NextCity {
     NextCity* next;
 };
 
-__global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double fermoneIncrease) {
-    int i = threadIdx.x;
+__global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double * distances, double fermoneIncrease, int cityCount) {
+    int i = blockIdx.x;
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // TODO implement 
+    double leftFermone = fermoneIncrease / distances[i];
+    if (j > 0) {
+        fermoneMap1D[citySequences[j - 1] * cityCount + citySequences[j]] += leftFermone;
+        fermoneMap1D[citySequences[j] * cityCount + citySequences[j-1]] += leftFermone;
+    }
+
+    if (j == 0) {
+        fermoneMap1D[citySequences[i * cityCount] * cityCount + citySequences[i * cityCount + cityCount - 1]] += leftFermone;
+        fermoneMap1D[citySequences[i * cityCount + cityCount - 1] * cityCount + citySequences[i * cityCount]] += leftFermone;
+    }
+
 }
 
 
@@ -293,10 +304,11 @@ Error:
     cudaFree(dev_city_sequences);
 }
 
-void leaveFermones(double* fermoneMap1D, int* citySequences, double fermoneIncrease, unsigned int mapSize) {
+void leaveFermones(double* fermoneMap1D, int* citySequences, double* distances, double fermoneIncrease, unsigned int mapSize, unsigned int citiesCount) {
 
     double* dev_fermone_map = 0;
     int* dev_city_sequences = 0;
+    double* dev_distancecs = 0;
 
     cudaError_t cudaStatus;
 
@@ -311,6 +323,11 @@ void leaveFermones(double* fermoneMap1D, int* citySequences, double fermoneIncre
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&dev_distancecs, citiesCount * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
     cudaStatus = cudaMemcpy(dev_city_sequences, citySequences, mapSize * sizeof(int), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         goto Error;
@@ -321,8 +338,13 @@ void leaveFermones(double* fermoneMap1D, int* citySequences, double fermoneIncre
         goto Error;
     }
 
+    cudaStatus = cudaMemcpy(dev_distancecs, distances, citiesCount * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
 
-    leaveFermone << <1, mapSize >> > (dev_fermone_map, dev_city_sequences, fermoneIncrease);
+
+    leaveFermone << <citiesCount, citiesCount >> > (dev_fermone_map, dev_city_sequences, dev_distancecs, fermoneIncrease, citiesCount);
 
 
     cudaStatus = cudaDeviceSynchronize();
@@ -428,7 +450,7 @@ extern "C" {
         moveAnts(cityMap1D, fermoneMap1D, mapSize, citiesCount, fermoneImportance, distanceImportance, distances, citySequences);
     }
 
-    void leave_fermone_wrp(double* fermoneMap1D, int* citySequences, double fermoneIncrease, unsigned int mapSize) {
-        leaveFermones(fermoneMap1D, citySequences, fermoneIncrease, mapSize);
+    void leave_fermone_wrp(double* fermoneMap1D, int* citySequences, double * distances, double fermoneIncrease, unsigned int mapSize, unsigned int cityCount) {
+        leaveFermones(fermoneMap1D, citySequences, distances, fermoneIncrease, mapSize, cityCount);
     }
 }
