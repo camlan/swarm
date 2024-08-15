@@ -1,5 +1,6 @@
 ﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include "curand_kernel.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -10,6 +11,13 @@ struct NextCity {
     double probability;
     NextCity* next;
 };
+
+__global__ void setupKernel(curandState* state) {
+    int id = threadIdx.x + blockIdx.x * blockDim.x;
+    /* Each thread gets same seed, a different sequence
+       number, no offset */
+    curand_init(1234, id, 0, &state[id]);
+}
 
 __global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double * distances, double fermoneIncrease, int cityCount) {
     int i = blockIdx.x;
@@ -112,19 +120,33 @@ __device__ double calculatePathDistance(int* citySequence, unsigned int citiesCo
     return distance;
 }
 
-__global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int *citySequences) {
+__global__ void moveAnt(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences, curandState* state) {
+    int ant = threadIdx.x; // TODO consider different block/thread structure
+
+    //int currentCity = ant;
+    curandState localState = state[ant];
+    //for (int i = 0; i < citiesCount; i++) {
+    //    double r = curand_uniform(&localState);
+    //}
+
+    distances[ant] = curand_uniform(&localState);
+
+}
+
+__global__ void moveAnt_old(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int *citySequences, curandState* state) {
     int ant = threadIdx.x; // TODO consider different block/thread structure
     char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
     int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
-    NextCity* nextCityProbabilities;
+    NextCity* nextCityProbabilities=0;
 
 
     int currentCity = ant;
+    curandState localState = state[ant];
     for (int i = 0; i < citiesCount; i++) {
         visited[currentCity] = 1;
         citySequence[i] = currentCity;
         nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
-        double r = 0; // TODO cuda random generator (double)rand() / (double)RAND_MAX;
+        double r = (double)curand_uniform(&localState);
         currentCity = selectNexyCity(nextCityProbabilities, r);
     }
     double distance = calculatePathDistance(citySequence, citiesCount, cityMap1D);
@@ -238,6 +260,8 @@ void moveAnts(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, uns
     int* dev_city_sequences = 0;
     cudaError_t cudaStatus;
 
+    curandState* devStates=0;
+
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
         goto Error;
@@ -264,6 +288,11 @@ void moveAnts(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, uns
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&devStates, citiesCount * sizeof(curandState));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
     cudaStatus = cudaMemcpy(dev_city_map, cityMap1D, mapSize * sizeof(double), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         goto Error;
@@ -274,7 +303,9 @@ void moveAnts(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, uns
         goto Error;
     }
 
-    moveAnt << <1, citiesCount >> > (dev_city_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences);
+    setupKernel << <1, citiesCount >> > (devStates);
+
+    moveAnt << <1, citiesCount >> > (dev_city_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences, devStates);
 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {

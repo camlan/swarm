@@ -24,12 +24,12 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 
-	fermoneMap := internal.GenerateFermoneMap(len(cityDistanceMatrixScaled), initFermone)
+	fermoneMap := internal.GenerateFermoneMap(numberOfCities, initFermone)
 	fermoneMap1D := flattenArray(fermoneMap)
 
 	fmt.Printf("Number of cities: %d\n", numberOfCities)
 	fmt.Printf("Scaled matrix: %v\n", dim2DArray(cityDistanceMatrixScaled))
-	fmt.Printf("Initial fermone matrix: %v\n", fermoneMap)
+	fmt.Printf("Initial fermone matrix: %v\n", fermoneMap1D)
 
 	bestPath := internal.Path{Distance: math.MaxInt, CitySequence: []int{}}
 	paths := []internal.Path{}
