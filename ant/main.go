@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	// "github.com/camlan/swarm/ant/basic"
+	"github.com/camlan/swarm/ant/basic"
 	"github.com/camlan/swarm/ant/cuda"
 	"github.com/camlan/swarm/ant/file"
 )
@@ -18,6 +18,8 @@ func main() {
 		cityMatrix = file.GenerateCityMatrix(args[0])
 	}
 	fmt.Printf("City Matrix: %v\n", cityMatrix)
-	path := cuda.FindShortestPath(cityMatrix)
-	fmt.Printf("%+v", *path)
+	path := basic.FindShortestPathRouties(cityMatrix)
+	fmt.Printf("Basic: %+v", *path)
+	path2 := cuda.FindShortestPath(cityMatrix)
+	fmt.Printf("Cuda: %+v", *path2)
 }

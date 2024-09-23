@@ -181,10 +181,12 @@ func calculatePathsSelectionProbabilies(cityDistanceMatrix [][]float64,
 		}
 	}
 
-	nextCityProbabilities[0].probability /= totalProbabilty
-	for i := 1; i < len(nextCityProbabilities); i++ {
-		nextCityProbabilities[i].probability /= totalProbabilty
-		nextCityProbabilities[i].probability += nextCityProbabilities[i-1].probability
+	if len(nextCityProbabilities) > 0 {
+		nextCityProbabilities[0].probability /= totalProbabilty
+		for i := 1; i < len(nextCityProbabilities); i++ {
+			nextCityProbabilities[i].probability /= totalProbabilty
+			nextCityProbabilities[i].probability += nextCityProbabilities[i-1].probability
+		}
 	}
 	return
 }
