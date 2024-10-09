@@ -5,11 +5,11 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+//#include <stdio.h>
 
 struct NextCity {
     int cityIndex;
     double probability;
-    NextCity* next;
 };
 
 __global__ void setupKernel(curandState* state) {
@@ -36,13 +36,6 @@ __global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double * 
 
 }
 
-
-__global__ void addKernel(int* c, const int* a, const int* b)
-{
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i] * 2;
-}
-
 __global__ void scaleMapKernel(double* scaledMap, double* baseMap, double scaler, unsigned int size) {
     int i = threadIdx.x;
     if (i < size) {
@@ -55,7 +48,6 @@ __global__ void scaleMapKernel(double* scaledMap, double* baseMap, double scaler
     }
 }
 
-
 __global__ void evaporateFermoneKernel(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
     int i = threadIdx.x; 
     if (i < size) {
@@ -67,51 +59,82 @@ __device__ double calculatePathSelectionProbalitity(double distance, double dist
     return pow(distance, distanceImportance) * pow(fermone, fermoneImportance);
 }
 
-__device__ NextCity* calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount) {
-    NextCity* firstCity;
-    NextCity* nc;
+__device__ void calculatePathsSelectionProbabilies(double* cityMap1D, double* fermoneMap1D, double fermoneImportance, double distanceImportance, int currentCity, char* visited, int citiesCount, int * nextCitiesIndex, double * nextCityProbability) {
+   //  NextCity* nc;
 
     double* distances = (cityMap1D + (citiesCount * currentCity));
     double* fermones = (fermoneMap1D + (citiesCount * currentCity));
     double totalProbabilty = 0;
-    nc = (NextCity*)malloc(sizeof(struct NextCity));
-    firstCity = nc;
+    //nc = (NextCity*)malloc(citiesCount * sizeof(struct NextCity));
 
     for (int i = 0; i < citiesCount; i++) {
+        nextCityProbability[i] = -1000;
+        nextCitiesIndex[i]= -1;
+    }
+
+    int position = 0;
+    for (int i = 0; i < citiesCount; i++) {
         if (distances[i] > 0 && !visited[i]) {
-            nc->cityIndex = i;
-            nc->probability = calculatePathSelectionProbalitity(distances[i], distanceImportance, fermones[i], fermoneImportance);
-            totalProbabilty += nc->probability;
-            nc->next = (NextCity*)malloc(sizeof(struct NextCity));
-            nc = nc->next;
-            nc->next = 0;
-            nc->probability = -100;
+            nextCitiesIndex[position] = i;
+            nextCityProbability[position] = calculatePathSelectionProbalitity(distances[i], distanceImportance, fermones[i], fermoneImportance);
+            totalProbabilty += nextCityProbability[position];
+            //nc->next = (NextCity*)malloc(sizeof(struct NextCity));
+            //nc = nc->next;
+            //nc->next = 0;
+            //nc->probability = -100;
+            position++;
         }
     }
 
-    nc = firstCity;
-    nc->probability /= totalProbabilty;
+    
+    nextCityProbability[0] /= totalProbabilty;
 
-    while (nc->next && nc->next->probability > 0) {
-        nc->next->probability /= totalProbabilty;
-        nc->next->probability += nc->probability;
-        nc = nc->next;
+    for (int i = 1; i < position; i++) {
+        nextCityProbability[i] /= totalProbabilty;
+        nextCityProbability[i] += nextCityProbability[i - 1];
     }
 
-    return firstCity;
+    //while (nc->next && nc->next->probability > 0) {
+    //    nc->next->probability /= totalProbabilty;
+    //    nc->next->probability += nc->probability;
+    //    nc = nc->next;
+    //}
+
+    //return nc;
 }
 
-__device__ int selectNexyCity(NextCity* nc, double randomSelector) {
-    while (nc) {
-        if (randomSelector < nc->probability) {
-            return nc->cityIndex;
+__device__ int selectNexyCity(int* nextCitiesIndex, double* nextCityProbability, double randomSelector, int citiesCount) {
+    //for (int i = 0; i < citiesCount; i++) {
+    //    if (randomSelector < nc[i].probability) {
+
+    //    }
+    //}
+
+
+    // return nc[0].cityIndex;
+    int pos = 0;
+    for (int i = 0; i < citiesCount; i++) {
+        if (nextCitiesIndex[i] < 0) {
+            break;
         }
-        if (!nc->next) {
-            return nc->cityIndex;
+
+        if (randomSelector < nextCityProbability[i]) {
+            return nextCitiesIndex[i];
         }
-        nc = nc->next;
+        pos++;
     }
-    return nc->cityIndex;
+    return nextCitiesIndex[pos-1];
+
+    //while (nc) {
+    //    if (randomSelector < nc->probability) {
+    //        return nc->cityIndex;
+    //    }
+    //    if (!nc->next) {
+    //        return nc->cityIndex;
+    //    }
+    //    nc = nc->next;
+    //}
+    //return nc->cityIndex;
 }
 
 __device__ double calculatePathDistance(int* citySequence, unsigned int citiesCount, double* distanceMap1D) {
@@ -120,24 +143,29 @@ __device__ double calculatePathDistance(int* citySequence, unsigned int citiesCo
     for (int i = 1; i < citiesCount; i++) {
         distance += *(distanceMap1D + (*(citySequence + i - 1) * citiesCount) + *(citySequence + i));
     }
-    //TODO add last return path from last to beginning
+    distance += *(distanceMap1D + (*(citySequence + citiesCount - 1) * citiesCount) + *(citySequence));
+
     return distance;
 }
 
 __global__ void moveAnt(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences, curandState* state) {
     int ant = threadIdx.x; // TODO consider different block/thread structure
-    char visited[20];
-    int citySequence[20];
-    NextCity* nextCityProbabilities; 
+    char visited[4];
+    int citySequence[4];
+    // NextCity nextCityProbabilities[4]; //= (NextCity**)malloc(sizeof(struct NextCity));
+    int nextCityProbabilitiesIndex[4];
+    double nextCityProbabilitiesProbability[4];
+
 
     int currentCity = ant;
     curandState localState = state[ant];
+    double r;
     for (int i = 0; i < citiesCount; i++) {
         visited[currentCity] = 1;
         citySequence[i] = currentCity;
-        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
-        double r = curand_uniform(&localState);
-        currentCity = selectNexyCity(nextCityProbabilities, r);
+        calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount, nextCityProbabilitiesIndex, nextCityProbabilitiesProbability);
+        r = curand_uniform(&localState);
+        currentCity = selectNexyCity(nextCityProbabilitiesIndex, nextCityProbabilitiesProbability, r, citiesCount);
     }
 
     distances[ant] = calculatePathDistance(citySequence, citiesCount, distanceMap1D);
@@ -145,34 +173,48 @@ __global__ void moveAnt(double* cityMap1D, double* distanceMap1D, double* fermon
     for (int i = 0; i < citiesCount; i++) {
         citySequences[ant * citiesCount + i] = citySequence[i];
     }
+
+    //NextCity* tmp = nextCityProbabilities;
+
+    //int i = 0;
+    //while (tmp && i < citiesCount) {
+    //    free(tmp);
+    //    tmp = (nextCityProbabilities + ++i);
+    //}
+
+    //while (nextCityProbabilities->next) {
+    //    tmp = nextCityProbabilities->next;
+    //    free(nextCityProbabilities);
+    //    nextCityProbabilities = tmp;
+    //}
+
+    // free(nextCityProbabilities);
 }
 
-__global__ void moveAnt_old(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int *citySequences, curandState* state) {
-    int ant = threadIdx.x; // TODO consider different block/thread structure
-    char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
-    int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
-    NextCity* nextCityProbabilities=0;
-
-
-    int currentCity = ant;
-    curandState localState = state[ant];
-    for (int i = 0; i < citiesCount; i++) {
-        visited[currentCity] = 1;
-        citySequence[i] = currentCity;
-        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount);
-        double r = (double)curand_uniform(&localState);
-        currentCity = selectNexyCity(nextCityProbabilities, r);
-    }
-    double distance = calculatePathDistance(citySequence, citiesCount, cityMap1D);
-
-
-    distances[ant] = distance;
-    
-    //TODO transer for loop to parallel ??
-    for (int i = 0; i < citiesCount; i++) {
-        citySequences[ant * citiesCount + i] = citySequence[i];
-    }
-}
+//__global__ void moveAnt_old(double* cityMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int *citySequences, curandState* state) {
+//    int ant = threadIdx.x; // TODO consider different block/thread structure
+//    char visited [100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+//    int citySequence[100]; // TODO figure out proper memory allocation technique within device to share accross all threads (should be citiesCount)
+//    NextCity* nextCityProbabilities=0;
+//
+//    int currentCity = ant;
+//    curandState localState = state[ant];
+//    for (int i = 0; i < citiesCount; i++) {
+//        visited[currentCity] = 1;
+//        citySequence[i] = currentCity;
+//        nextCityProbabilities = calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount, nextCityProbabilities);
+//        double r = (double)curand_uniform(&localState);
+//        currentCity = selectNexyCity(nextCityProbabilities, r, citiesCount);
+//    }
+//    double distance = calculatePathDistance(citySequence, citiesCount, cityMap1D);
+//
+//    distances[ant] = distance;
+//    
+//    //TODO transer for loop to parallel ??
+//    for (int i = 0; i < citiesCount; i++) {
+//        citySequences[ant * citiesCount + i] = citySequence[i];
+//    }
+//}
 
 void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEvaporation) {
     double* dev_fermone_map = 0;
@@ -211,7 +253,6 @@ void evaporateFermone(double* fermoneMap1D, unsigned int size, double fermoneEva
     if (cudaStatus != cudaSuccess) {
         goto Error;
     }
-
 
     Error:
         cudaFree(dev_fermone_map);
@@ -331,6 +372,11 @@ void moveAnts(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, un
 
     setupKernel << <1, citiesCount >> > (devStates);
 
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
     moveAnt << <1, citiesCount >> > (dev_city_map, dev_distance_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences, devStates);
 
     cudaStatus = cudaGetLastError();
@@ -353,9 +399,9 @@ void moveAnts(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, un
         goto Error;
     }
 
-
 Error:
     cudaFree(dev_city_map);
+    cudaFree(dev_distance_map);
     cudaFree(dev_fermone_map);
     cudaFree(dev_distances);
     cudaFree(dev_city_sequences);
@@ -418,81 +464,10 @@ void leaveFermones(double* fermoneMap1D, int* citySequences, double* distances, 
 Error:
     cudaFree(dev_fermone_map);
     cudaFree(dev_city_sequences);
-}
-
-// Helper function for using CUDA to add vectors in parallel.
-void addcuda(int* c, const int* a, const int* b, unsigned int size)
-{
-    int* dev_a = 0;
-    int* dev_b = 0;
-    int* dev_c = 0;
-    cudaError_t cudaStatus;
-
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel << <1, size >> > (dev_c, dev_a, dev_b);
-
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        goto Error;
-    }
-
-Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
+    cudaFree(dev_distancecs);
 }
 
 extern "C" {
-    void add_ant_wpr(int* c, const int* a, const int* b, int size) {
-        addcuda(c, a, b, size);
-    }
 
     void scale_city_matrix_wrp(double* flatScaledCityMap, const double* flatCityMap, unsigned int size, double distanceScaler) {
         scaleMap(flatScaledCityMap, flatCityMap, distanceScaler, size);
