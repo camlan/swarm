@@ -5,18 +5,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-//#include <stdio.h>
+#include "Windows.h"
 
-struct NextCity {
-    int cityIndex;
-    double probability;
-};
-
-__global__ void setupKernel(curandState* state) {
-    int id = threadIdx.x + blockIdx.x * blockDim.x;
+__global__ void setupKernel(curandState* state, uint64_t seed) {
+    // int id = threadIdx.x + blockIdx.x * blockDim.x;
+    int id = threadIdx.x;
     /* Each thread gets same seed, a different sequence
        number, no offset */
-    curand_init(1234, id, 0, &state[id]);
+    curand_init(seed, id, 0, &state[id]);
 }
 
 __global__ void leaveFermone(double* fermoneMap1D, int* citySequences, double * distances, double fermoneIncrease, int cityCount) {
@@ -148,30 +144,39 @@ __device__ double calculatePathDistance(int* citySequence, unsigned int citiesCo
     return distance;
 }
 
-__global__ void moveAnt(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences, curandState* state) {
+__global__ void moveAnt(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, unsigned int mapSize, unsigned int citiesCount, double fermoneImportance, double distanceImportance, double* distances, int* citySequences, curandState* state, char * visited, int * citySequence, int * nextCityProbabilitiesIndex, double * nextCityProbabilitiesProbability) {
     int ant = threadIdx.x; // TODO consider different block/thread structure
-    char visited[4];
-    int citySequence[4];
-    // NextCity nextCityProbabilities[4]; //= (NextCity**)malloc(sizeof(struct NextCity));
-    int nextCityProbabilitiesIndex[4];
-    double nextCityProbabilitiesProbability[4];
+    //char visited[4];
+    //int citySequence[4];
+    //// NextCity nextCityProbabilities[4]; //= (NextCity**)malloc(sizeof(struct NextCity));
+    //int nextCityProbabilitiesIndex[4];
+    //double nextCityProbabilitiesProbability[4];
+
+
+    for (int i = 0; i < citiesCount; i++) {
+        visited[i] = 0;
+        citySequence[i] = 0;
+        nextCityProbabilitiesIndex[i] = 0;
+        nextCityProbabilitiesProbability[i] = 0;
+    }
 
 
     int currentCity = ant;
     curandState localState = state[ant];
     double r;
     for (int i = 0; i < citiesCount; i++) {
-        visited[currentCity] = 1;
-        citySequence[i] = currentCity;
+       visited[currentCity] = 1;
+       citySequence[i] = currentCity;
         calculatePathsSelectionProbabilies(cityMap1D, fermoneMap1D, fermoneImportance, distanceImportance, currentCity, visited, citiesCount, nextCityProbabilitiesIndex, nextCityProbabilitiesProbability);
         r = curand_uniform(&localState);
         currentCity = selectNexyCity(nextCityProbabilitiesIndex, nextCityProbabilitiesProbability, r, citiesCount);
     }
 
-    distances[ant] = calculatePathDistance(citySequence, citiesCount, distanceMap1D);
+    distances[ant] = curand_uniform(&localState);
 
     for (int i = 0; i < citiesCount; i++) {
         citySequences[ant * citiesCount + i] = citySequence[i];
+        //citySequences[ant * citiesCount + i] = ant;
     }
 
     //NextCity* tmp = nextCityProbabilities;
@@ -318,10 +323,39 @@ void moveAnts(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, un
 
     curandState* devStates=0;
 
+
+    char * dev_visited;
+    int * dev_citySequence;
+    int * dev_nextCityProbabilitiesIndex;
+    double *  dev_nextCityProbabilitiesProbability;
+
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
         goto Error;
     }
+
+
+    cudaStatus = cudaMalloc((void**)&dev_visited, citiesCount * sizeof(char));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_citySequence, citiesCount * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+
+    cudaStatus = cudaMalloc((void**)&dev_nextCityProbabilitiesIndex, citiesCount * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
+    cudaStatus = cudaMalloc((void**)&dev_nextCityProbabilitiesProbability, citiesCount * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto Error;
+    }
+
 
 
     cudaStatus = cudaMalloc((void**)&dev_city_map, mapSize * sizeof(double));
@@ -370,14 +404,17 @@ void moveAnts(double* cityMap1D, double* distanceMap1D, double* fermoneMap1D, un
         goto Error;
     }
 
-    setupKernel << <1, citiesCount >> > (devStates);
+    unsigned __int64 startTime;
+    QueryPerformanceCounter((LARGE_INTEGER*)&startTime);
+
+    setupKernel << <1, citiesCount >> > (devStates, startTime);
 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto Error;
     }
 
-    moveAnt << <1, citiesCount >> > (dev_city_map, dev_distance_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences, devStates);
+    moveAnt << <1, citiesCount >> > (dev_city_map, dev_distance_map, dev_fermone_map, mapSize, citiesCount, fermoneImportance, distanceImportance, dev_distances, dev_city_sequences, devStates, dev_visited, dev_citySequence, dev_nextCityProbabilitiesIndex, dev_nextCityProbabilitiesProbability);
 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
@@ -405,6 +442,11 @@ Error:
     cudaFree(dev_fermone_map);
     cudaFree(dev_distances);
     cudaFree(dev_city_sequences);
+
+    cudaFree(dev_visited);
+    cudaFree(dev_citySequence);
+    cudaFree(dev_nextCityProbabilitiesIndex);
+    cudaFree(dev_nextCityProbabilitiesProbability);
 }
 
 void leaveFermones(double* fermoneMap1D, int* citySequences, double* distances, double fermoneIncrease, unsigned int mapSize, unsigned int citiesCount) {
