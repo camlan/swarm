@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"math"
 	"slices"
 )
 
@@ -20,8 +21,7 @@ func SetUpParamters(distanceMap [][]float64) (float64, float64, float64, float64
 	distanceImportance := 1.0
 	fermoneEvaporation := 0.6
 	fermoneLeft := 7.0
-	iterations := 2
-	// iterations := int(math.Min(math.Max(5000, float64(len(distanceMap))*2000), 60000))
+	iterations := int(math.Min(math.Max(5000, float64(len(distanceMap))*2000), 60000))
 	return initFermone, fermoneImportance, calculateDistanceScalerParam(distanceMap), distanceImportance, fermoneEvaporation, fermoneLeft, iterations
 }
 

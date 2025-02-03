@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/camlan/swarm/ant/internal"
 	"github.com/hashicorp/go-set/v2"
 )
 
@@ -21,7 +22,7 @@ type NextCity struct {
 }
 
 func FindShortestPath(distanceMap [][]float64) (bestPathPtr *Path) {
-	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := setUpParamters(distanceMap)
+	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 

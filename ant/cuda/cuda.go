@@ -1,7 +1,6 @@
 package cuda
 
 import (
-	"fmt"
 	"math"
 	"sort"
 
@@ -20,19 +19,13 @@ import "C"
 
 func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 	initFermone, fermoneImportance, distanceScaler, distanceImportance, fermoneEvaporation, fermoneLeft, iterations := internal.SetUpParamters(distanceMap)
-	//initFermone, fermoneImportance, distanceScaler, distanceImportance, _, _, iterations := internal.SetUpParamters(distanceMap)
 
 	cityDistanceMatrixScaled := generateScaledCityDistanceMatrix(distanceMap, distanceScaler)
 	numberOfCities := len(distanceMap)
 	distanceMap1D := flattenArray(distanceMap)
-	// iterations = 5000
 
 	fermoneMap := internal.GenerateFermoneMap(numberOfCities, initFermone)
 	fermoneMap1D := flattenArray(fermoneMap)
-
-	fmt.Printf("Number of cities: %d\n", numberOfCities)
-	fmt.Printf("Scaled matrix: %v\n", dim2DArray(cityDistanceMatrixScaled))
-	fmt.Printf("Initial fermone matrix: %v\n", fermoneMap1D)
 
 	bestPath := internal.Path{Distance: math.MaxInt, CitySequence: []int{}}
 	paths := []internal.Path{}
@@ -55,8 +48,6 @@ func FindShortestPath(distanceMap [][]float64) (bestPathPtr *internal.Path) {
 
 		fermoneMap1D = evaporateFermone(fermoneMap1D, fermoneEvaporation)
 		fermoneMap1D = leaveFermone(fermoneMap1D, citySequence1D, distances, fermoneLeft)
-		fmt.Printf("Fermone matrix: %v\n", fermoneMap1D)
-		fmt.Printf("Best path: %v\n", bestPath)
 	}
 
 	bestPathPtr = &bestPath
@@ -73,18 +64,6 @@ func moveAnts(numberOfCities int, cityMapScaled []float64, distanceMap1D []float
 
 func leaveFermone(fermoneMap1D []float64, citySequence1D []int32, distances []float64, fermoneIncrease float64) []float64 {
 	C.leave_fermone_wrp((*C.double)(&fermoneMap1D[0]), (*C.int)(&citySequence1D[0]), (*C.double)(&distances[0]), C.double(fermoneIncrease), C.uint(len(fermoneMap1D)), C.uint(len(distances)))
-
-	// TODO implement in CUDA
-
-	// for _, path := range paths {
-	// 	leftFermone := float64(fermoneIncrease) / float64(path.distance)
-	// 	for i := 1; i < len(path.citySequence); i++ {
-	// 		fermoneMatrix[path.citySequence[i-1]][path.citySequence[i]] += leftFermone
-	// 		fermoneMatrix[path.citySequence[i]][path.citySequence[i-1]] += leftFermone
-	// 	}
-	// 	fermoneMatrix[path.citySequence[len(path.citySequence)-1]][path.citySequence[0]] += leftFermone
-	// 	fermoneMatrix[path.citySequence[0]][path.citySequence[len(path.citySequence)-1]] += leftFermone
-	// }
 	return fermoneMap1D
 }
 

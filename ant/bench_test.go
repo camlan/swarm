@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/camlan/swarm/ant/basic"
+	"github.com/camlan/swarm/ant/cuda"
 	"github.com/camlan/swarm/ant/file"
 )
 
@@ -47,6 +48,15 @@ func BenchmarkFindShortestPathBasicRoutines(b *testing.B) {
 		b.Run(fmt.Sprintf("file:%s", f), func(b *testing.B) {
 			cityMatrix := file.GenerateCityMatrix(f)
 			basic.FindShortestPathRouties(cityMatrix)
+		})
+	}
+}
+
+func BenchmarkFindShortestPathCuda(b *testing.B) {
+	for _, f := range filesParallel {
+		b.Run(fmt.Sprintf("file:%s", f), func(b *testing.B) {
+			cityMatrix := file.GenerateCityMatrix(f)
+			cuda.FindShortestPath(cityMatrix)
 		})
 	}
 }

@@ -2,24 +2,35 @@ package basic
 
 import (
 	"testing"
+
+	"github.com/camlan/swarm/ant/internal"
 )
 
 func TestFindShortestPath(t *testing.T) {
-
 	// given
-	distanceMap := [][]float64{
-		{0.0, 3.0, 5.0, 4.0},
-		{3.0, 0.0, 3.162277, 5.0},
-		{5.0, 3.162277, 0.0, 4.1231055},
-		{4.0, 5.0, 4.1231055, 0.0},
+	distancesToVerify := internal.DistancesToVerifyFeed()
+
+	for expected, distanceMap := range distancesToVerify {
+		//when
+		foundPath := FindShortestPath(distanceMap)
+		//then
+		if !internal.IsInRange(expected, foundPath.distance) {
+			t.Errorf("Expected distance %v, got:%v", expected, foundPath.distance)
+		}
+
 	}
-	expectedDistance := 14.2853825
+}
 
-	// when
-	foundPath := FindShortestPath(distanceMap)
+func TestFindShortestPathRoutines(t *testing.T) {
+	// given
+	distancesToVerify := internal.DistancesToVerifyFeed()
 
-	// then
-	if foundPath.distance != expectedDistance {
-		t.Errorf("Expected distance %v, got:%v", expectedDistance, foundPath.distance)
+	for expected, distanceMap := range distancesToVerify {
+		//when
+		foundPath := FindShortestPathRouties(distanceMap)
+		//then
+		if !internal.IsInRange(expected, foundPath.distance) {
+			t.Errorf("Expected distance %v, got:%v", expected, foundPath.distance)
+		}
 	}
 }

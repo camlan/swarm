@@ -19,7 +19,7 @@ func main() {
 	}
 	fmt.Printf("City Matrix: %v\n", cityMatrix)
 	path := basic.FindShortestPathRouties(cityMatrix)
-	fmt.Printf("Basic: %+v", *path)
+	fmt.Printf("Basic: %+v\n", *path)
 	path2 := cuda.FindShortestPath(cityMatrix)
-	fmt.Printf("Cuda: %+v", *path2)
+	fmt.Printf("Cuda: %+v\n", *path2)
 }
