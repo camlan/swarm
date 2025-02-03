@@ -2,9 +2,12 @@ package cuda
 
 import (
 	"testing"
+
+	"github.com/camlan/swarm/ant/file"
+	"github.com/camlan/swarm/ant/internal"
 )
 
-func TestFindShortestPath(t *testing.T) {
+func TestFindShortestPathSanity(t *testing.T) {
 
 	// given
 	distanceMap := [][]float64{
@@ -21,5 +24,20 @@ func TestFindShortestPath(t *testing.T) {
 	// then
 	if foundPath.Distance != expectedDistance {
 		t.Errorf("Expected distance %v, got:%v", expectedDistance, foundPath.Distance)
+	}
+}
+
+func TestFindShortestPath(t *testing.T) {
+	// given
+	distancesToVerify := internal.DistancesToVerifyFeed()
+	distancesToVerify[1068] = file.GenerateCityMatrix("..\\data\\wg59_dist.txt")
+
+	for expected, distanceMap := range distancesToVerify {
+		//when
+		foundPath := FindShortestPath(distanceMap)
+		//then
+		if !internal.IsInRange(expected, foundPath.Distance) {
+			t.Errorf("Expected distance %v, got:%v", expected, foundPath.Distance)
+		}
 	}
 }

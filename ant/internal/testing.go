@@ -7,7 +7,6 @@ func DistancesToVerifyFeed() (distances map[float64][][]float64) {
 
 	distances[14.2853825] = file.GenerateCityMatrix("..\\data\\grid04_dist.txt")
 	distances[820] = file.GenerateCityMatrix("..\\data\\wg22_dist.txt")
-	distances[1068] = file.GenerateCityMatrix("..\\data\\wg59_dist.txt")
 
 	return
 }

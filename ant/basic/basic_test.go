@@ -14,8 +14,8 @@ func TestFindShortestPath(t *testing.T) {
 		//when
 		foundPath := FindShortestPath(distanceMap)
 		//then
-		if !internal.IsInRange(expected, foundPath.distance) {
-			t.Errorf("Expected distance %v, got:%v", expected, foundPath.distance)
+		if !internal.IsInRange(expected, foundPath.Distance) {
+			t.Errorf("Expected distance %v, got:%v", expected, foundPath.Distance)
 		}
 
 	}
@@ -29,8 +29,8 @@ func TestFindShortestPathRoutines(t *testing.T) {
 		//when
 		foundPath := FindShortestPathRouties(distanceMap)
 		//then
-		if !internal.IsInRange(expected, foundPath.distance) {
-			t.Errorf("Expected distance %v, got:%v", expected, foundPath.distance)
+		if !internal.IsInRange(expected, foundPath.Distance) {
+			t.Errorf("Expected distance %v, got:%v", expected, foundPath.Distance)
 		}
 	}
 }
