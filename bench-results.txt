@@ -1,34 +1,11 @@
-Ms Justyna was really helpful on every stage of my recruitment process. 
-She not only made the process candiate friendly, but also gave support and managed to find answers to all my questions.
-I recommend Ms Justyna as a great recruiter. 
 
-114061488800
-3281375500
-
-
-
-
-BenchmarkFindShortestPathBasicRoutines
-
-
+BenchmarkFindShortestPathBasic:
 BenchmarkFindShortestPathBasic/file:data\uk12_dist.txt-12                      1        3292277100 ns/op
 BenchmarkFindShortestPathBasic/file:data\ha30_dist.txt-12                      1        108291253500 ns/op
 BenchmarkFindShortestPathBasic/file:data\grid04_dist.txt-12             1000000000               0.03593 ns/op
 
-BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt-12                      1        1482858200 ns/op
-BenchmarkFindShortestPathBasicRoutines/file:data\ha30_dist.txt-12                      1        29537733300 ns/op
-BenchmarkFindShortestPathBasicRoutines/file:data\grid04_dist.txt-12             1000000000               0.06708 ns/op
 
-
-3292277100
-1482858200
-
-
-108291253500
-29537733300
-
-
-cpu: AMD Ryzen 5 5600H with Radeon Graphics
+BenchmarkFindShortestPathBasicRoutines:
 BenchmarkFindShortestPathBasicRoutines/file:data\uk12_dist.txt-12                      1        1482858200 ns/op
 BenchmarkFindShortestPathBasicRoutines/file:data\ha30_dist.txt-12                      1        29537733300 ns/op
 BenchmarkFindShortestPathBasicRoutines/file:data\grid04_dist.txt-12             1000000000               0.06708 ns/op
@@ -40,6 +17,18 @@ BenchmarkFindShortestPathBasicRoutines/file:data\wg22_dist.txt-12               
 BenchmarkFindShortestPathBasicRoutines/file:data\wg59_dist.txt-12                      1        193692791300 ns/op
 
 
+BenchmarkFindShortestPathCuda:
+BenchmarkFindShortestPathCuda/file:data\uk12_dist.txt-12         	       1	22560086900 ns/op	77012488 B/op	  552124 allocs/op
+BenchmarkFindShortestPathCuda/file:data\ha30_dist.txt-12         	       1	250667190500 ns/op	873205920 B/op	 2520318 allocs/op
+BenchmarkFindShortestPathCuda/file:data\grid04_dist.txt-12       	       1	3947294800 ns/op	 5190400 B/op	  104037 allocs/op
+BenchmarkFindShortestPathCuda/file:data\kn57_dist.txt-12         	       3	 334453700 ns/op	947456514 B/op	 1400233 allocs/op
+BenchmarkFindShortestPathCuda/file:data\lau15_dist.txt-12        	1000000000	         0.1217 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFindShortestPathCuda/file:data\sgb128_dist.txt-12       	       1	4254167900 ns/op	12616264744 B/op	 8522021 allocs/op
+BenchmarkFindShortestPathCuda/file:data\sp11_dist.txt-12         	1000000000	         0.08254 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFindShortestPathCuda/file:data\uk12_dist.txt#01-12      	1000000000	         0.09403 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFindShortestPathCuda/file:data\wg22_dist.txt-12         	1000000000	         0.2718 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFindShortestPathCuda/file:data\wg59_dist.txt-12         	       1	1045611400 ns/op	2953749360 B/op	 4320748 allocs/op
 
-730046931000
-193692791300
+
+Notes:
+cpu: AMD Ryzen 5 5600H with Radeon Graphics
